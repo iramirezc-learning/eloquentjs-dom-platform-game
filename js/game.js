@@ -1,7 +1,7 @@
 /* globals GAME_LEVELS */
 // Based on Dark Blue Game by Thomas Palef. 
 // This game is from the book eloquentjavascript.net
-// Original Code
+// Code with solution to exercises. 
 
 // CONSTANTS
 //==================================================
@@ -13,6 +13,7 @@ var PLAYER_X_SPEED = 7;
 var GRAVITY = 30;
 var JUMP_SPEED = 17;
 var ARROW_CODES = {
+    27: 'pause',
     37: 'left',
     38: 'up',
     39: 'right'
@@ -24,7 +25,8 @@ var ACTOR_CHARS = {
     '|': Lava,
     'v': Lava
 };
-
+var LIVES = 3;
+var PAUSE = false;
 // VECTOR
 //==================================================
 function Vector(x, y) {
@@ -349,8 +351,32 @@ function trackKeys(codes) {
         }
     }
 
-    addEventListener('keydown', handler);
-    addEventListener('keyup', handler);
+    function pause(event) {
+        if (codes.hasOwnProperty(event.keyCode) && codes[event.keyCode] === 'pause') {
+            PAUSE = !PAUSE;
+            if (PAUSE) {
+                console.log('GAME PAUSED');
+                stopMotion();
+            } else {
+                console.log('GAME RESUMED');
+                activateMotion();
+            }
+            event.preventDefault();
+        }
+    }
+
+    function activateMotion() {
+        addEventListener('keydown', handler);
+        addEventListener('keyup', handler);
+    }
+
+    function stopMotion() {
+        removeEventListener('keydown', handler);
+        removeEventListener('keyup', handler);
+    }
+
+    activateMotion();
+    addEventListener('keyup', pause);
     return pressed;
 }
 
@@ -380,14 +406,21 @@ var arrows = trackKeys(ARROW_CODES);
 function runLevel(level, Display, andThen) {
     var display = new Display(document.body, level);
     runAnimation(function (step) {
-        level.animate(step, arrows);
-        display.drawFrame(step);
-        if (level.isFinished()) {
-            display.clear();
-            if (andThen) {
-                andThen(level.status);
+        if (!PAUSE) {
+            level.animate(step, arrows);
+            display.drawFrame(step);
+            if (level.isFinished()) {
+                display.clear();
+                if (andThen) {
+                    andThen(level.status);
+                }
+                return false;
             }
-            return false;
+        } else {
+            // jshint -W089
+            for (var k in arrows) {
+                arrows[k] = false;
+            }
         }
     });
 }
@@ -396,14 +429,23 @@ function runGame(plans, Display) {
     function startLevel(n) {
         runLevel(new Level(plans[n]), Display, function (status) {
             if (status === 'lost') {
-                startLevel(n);
+                LIVES -= 1;
+                if (LIVES > 0) {
+                    startLevel(n);
+                } else {
+                    console.log('GAME OVER');
+                    LIVES = 3;
+                    startLevel(0);
+                }
             } else if (n < plans.length - 1) {
                 startLevel(n + 1);
             } else {
                 console.log("You win!");
             }
+            console.log('Lives->', LIVES);
         });
     }
+    console.log('Lives->', LIVES);
     startLevel(0);
 }
 
